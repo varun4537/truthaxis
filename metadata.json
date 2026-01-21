@@ -1,0 +1,7 @@
+{
+  "name": "TruthAxis - Misleading Graph Fixer",
+  "description": "An AI-powered tool that detects misleading y-axes in charts and regenerates them with a proper baseline to provide an honest perspective.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
