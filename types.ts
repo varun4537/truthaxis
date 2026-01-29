@@ -9,6 +9,7 @@ export interface ChartStyle {
   secondaryColor: string;
   backgroundColor: string;
   gridColor: string;
+  textColor: string;
   fontFamily: 'sans-serif' | 'serif' | 'mono';
 }
 
@@ -24,6 +25,11 @@ export interface GraphAnalysis {
   yAxisLabel: string;
   style: ChartStyle;
   deceptionScore: number; // 0 to 100
+}
+
+export interface ProcessingStep {
+  label: string;
+  status: 'waiting' | 'current' | 'completed';
 }
 
 export enum AppStatus {

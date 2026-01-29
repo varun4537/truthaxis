@@ -2,8 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GraphAnalysis } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
 const analysisSchema = {
   type: Type.OBJECT,
   properties: {
@@ -33,9 +31,10 @@ const analysisSchema = {
         secondaryColor: { type: Type.STRING, description: "HEX code of a secondary color if present" },
         backgroundColor: { type: Type.STRING, description: "HEX code of the chart area background" },
         gridColor: { type: Type.STRING, description: "HEX code of grid lines if present" },
+        textColor: { type: Type.STRING, description: "HEX code of text labels, axes, and titles" },
         fontFamily: { type: Type.STRING, enum: ["sans-serif", "serif", "mono"] }
       },
-      required: ["primaryColor", "backgroundColor", "fontFamily"]
+      required: ["primaryColor", "backgroundColor", "fontFamily", "textColor"]
     },
     deceptionScore: { type: Type.NUMBER, description: "Score from 0-100 indicating how misleading the visual is" }
   },
@@ -43,8 +42,14 @@ const analysisSchema = {
 };
 
 export async function analyzeGraphImage(base64Image: string): Promise<GraphAnalysis> {
-  const model = "gemini-3-flash-preview";
+  // Re-instantiate to ensure latest API key is used
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  // Upgraded to Gemini 3 Pro for better reasoning and vision capabilities
+  const model = "gemini-3-pro-preview";
   
+  // Strip header if present
+  const base64Data = base64Image.includes(",") ? base64Image.split(",")[1] : base64Image;
+
   const response = await ai.models.generateContent({
     model,
     contents: [
@@ -53,7 +58,7 @@ export async function analyzeGraphImage(base64Image: string): Promise<GraphAnaly
           {
             text: `Act as a data forensic expert. Analyze this chart image. 
             1. Extract all data points (labels and numeric values) as accurately as possible. 
-            2. Identify the EXACT colors used for the bars/lines and background. Use HEX codes.
+            2. Identify the EXACT colors used for the bars/lines, background, grid, and text. Use HEX codes.
             3. Detect if the Y-axis is truncated (not starting at zero).
             4. Calculate a 'deceptionScore' from 0-100 where 100 is highly misleading (e.g. a 2% change looking like 500% change).
             5. Provide a clear reasoning on how the visual perception differs from the numerical reality.`
@@ -61,7 +66,7 @@ export async function analyzeGraphImage(base64Image: string): Promise<GraphAnaly
           {
             inlineData: {
               mimeType: "image/jpeg",
-              data: base64Image.split(",")[1]
+              data: base64Data
             }
           }
         ]
@@ -78,4 +83,46 @@ export async function analyzeGraphImage(base64Image: string): Promise<GraphAnaly
   }
 
   return JSON.parse(response.text) as GraphAnalysis;
+}
+
+export async function generateFixedChart(base64Image: string): Promise<string> {
+  // Re-instantiate to ensure latest API key is used
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  const model = "gemini-3-pro-image-preview"; // Nano Banana Pro
+
+  // Strip header if present
+  const base64Data = base64Image.includes(",") ? base64Image.split(",")[1] : base64Image;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: {
+      parts: [
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: "image/jpeg",
+          },
+        },
+        {
+          text: "Redraw this chart exactly as it is, but change the Y-axis to start at 0. Maintain the exact same style, fonts, colors, and aspect ratio. Do not change the data, only the y-axis scaling.",
+        },
+      ],
+    },
+    config: {
+      imageConfig: {
+        imageSize: "1K",
+      },
+    },
+  });
+
+  // Extract image from response
+  if (response.candidates && response.candidates[0].content.parts) {
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+  }
+
+  throw new Error("Failed to generate fixed chart image");
 }

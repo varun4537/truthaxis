@@ -1,118 +1,21 @@
 
-import React, { useRef, useState } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, AreaChart, Area 
-} from 'recharts';
-import { toPng } from 'html-to-image';
+import React, { useState } from 'react';
 import { GraphAnalysis } from '../types';
 
 interface ChartComparisonProps {
   analysis: GraphAnalysis;
+  originalImage: string;
+  fixedImage: string;
 }
 
-const ChartComparison: React.FC<ChartComparisonProps> = ({ analysis }) => {
-  const fixedChartRef = useRef<HTMLDivElement>(null);
+const ChartComparison: React.FC<ChartComparisonProps> = ({ analysis, originalImage, fixedImage }) => {
   const [showDataTable, setShowDataTable] = useState(false);
 
-  const downloadFixedChart = async () => {
-    if (fixedChartRef.current === null) return;
-    try {
-      const dataUrl = await toPng(fixedChartRef.current, { cacheBust: true, backgroundColor: '#ffffff' });
-      const link = document.createElement('a');
-      link.download = `truthaxis-fixed-${analysis.title.toLowerCase().replace(/\s+/g, '-')}.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Download failed', err);
-    }
-  };
-
-  const getFontFamily = (font: string) => {
-    switch (font) {
-      case 'serif': return "'Times New Roman', serif";
-      case 'mono': return "'JetBrains Mono', monospace";
-      default: return "'Inter', sans-serif";
-    }
-  };
-
-  const renderChart = (isFixed: boolean) => {
-    const yDomain = isFixed ? [0, 'auto'] : [analysis.detectedYAxisStart, analysis.detectedYAxisEnd];
-    const data = analysis.data;
-    const title = isFixed ? "Fixed Reality" : "Original Visual Bias";
-    const ChartComponent = analysis.chartType === 'bar' ? BarChart : 
-                         analysis.chartType === 'line' ? LineChart : AreaChart;
-
-    return (
-      <div 
-        ref={isFixed ? fixedChartRef : null}
-        className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex-1 min-w-[300px]"
-        style={{ fontFamily: getFontFamily(analysis.style.fontFamily) }}
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h3 className={`text-xs font-bold uppercase tracking-widest ${isFixed ? 'text-indigo-600' : 'text-slate-400'}`}>
-            {title}
-          </h3>
-          {isFixed && (
-            <button 
-              onClick={downloadFixedChart}
-              className="text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded transition-colors"
-            >
-              DOWNLOAD PNG
-            </button>
-          )}
-        </div>
-
-        <div className="h-[300px] w-full" style={{ backgroundColor: analysis.style.backgroundColor }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <ChartComponent data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={analysis.style.gridColor || "#f1f5f9"} />
-              <XAxis 
-                dataKey="label" 
-                axisLine={{ stroke: '#cbd5e1' }}
-                tickLine={false} 
-                tick={{ fill: '#64748b', fontSize: 11 }} 
-              />
-              <YAxis 
-                domain={yDomain} 
-                axisLine={{ stroke: '#cbd5e1' }}
-                tickLine={false} 
-                tick={{ fill: '#64748b', fontSize: 11 }} 
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  borderRadius: '12px', 
-                  border: '1px solid #e2e8f0', 
-                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                  fontSize: '12px'
-                }}
-              />
-              {analysis.chartType === 'bar' && (
-                <Bar dataKey="value" fill={analysis.style.primaryColor} radius={[2, 2, 0, 0]} />
-              )}
-              {analysis.chartType === 'line' && (
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke={analysis.style.primaryColor} 
-                  strokeWidth={2.5} 
-                  dot={{ r: 4, fill: analysis.style.primaryColor, strokeWidth: 2, stroke: '#fff' }} 
-                />
-              )}
-              {analysis.chartType === 'area' && (
-                <Area 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke={analysis.style.primaryColor} 
-                  fill={analysis.style.primaryColor} 
-                  fillOpacity={0.2}
-                />
-              )}
-            </ChartComponent>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
+  const downloadFixedChart = () => {
+    const link = document.createElement('a');
+    link.download = `truthaxis-fixed-${analysis.title.toLowerCase().replace(/\s+/g, '-')}.png`;
+    link.href = fixedImage;
+    link.click();
   };
 
   return (
@@ -137,7 +40,7 @@ const ChartComparison: React.FC<ChartComparisonProps> = ({ analysis }) => {
                  <div className="text-white font-mono">{analysis.detectedYAxisStart} units</div>
                </div>
                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
-                 <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Visual Multiplier</div>
+                 <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Visual Exaggeration</div>
                  <div className="text-white font-mono">
                    {analysis.isMisleading ? `${(analysis.detectedYAxisEnd / (analysis.detectedYAxisEnd - analysis.detectedYAxisStart)).toFixed(1)}x` : '1.0x'}
                  </div>
@@ -161,9 +64,48 @@ const ChartComparison: React.FC<ChartComparisonProps> = ({ analysis }) => {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        {renderChart(false)}
-        {renderChart(true)}
+      {/* Side by Side Comparison */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* Original */}
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">Original Visual Bias</h3>
+          </div>
+          <div className="aspect-square relative rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm group">
+            <img 
+              src={originalImage} 
+              alt="Original Chart" 
+              className="w-full h-full object-contain p-4"
+            />
+            <div className="absolute top-4 right-4 bg-rose-100 text-rose-600 text-[10px] font-bold px-2 py-1 rounded border border-rose-200 uppercase tracking-wide">
+              Misleading Axis
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed Reality */}
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-500">Fixed Reality (AI Generated)</h3>
+            <button 
+              onClick={downloadFixedChart}
+              className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors uppercase tracking-wide"
+            >
+              Download PNG
+            </button>
+          </div>
+          <div className="aspect-square relative rounded-2xl overflow-hidden bg-white border-2 border-indigo-100 shadow-lg shadow-indigo-100 group">
+             <img 
+              src={fixedImage} 
+              alt="Fixed Chart" 
+              className="w-full h-full object-contain p-4"
+            />
+            <div className="absolute top-4 right-4 bg-indigo-100 text-indigo-600 text-[10px] font-bold px-2 py-1 rounded border border-indigo-200 uppercase tracking-wide">
+              Zero Baseline
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Data Transparency Toggle */}
